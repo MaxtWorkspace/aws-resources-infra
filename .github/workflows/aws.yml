@@ -23,17 +23,39 @@ permissions:
 
 jobs:
   deploy:
-    name: Deploy
+    name: deploy CDK
     runs-on: ubuntu-latest
     environment: production
 
     steps:
-    - name: Checkout
+    - name: checkout
       uses: actions/checkout@v3
 
-    - name: Configure AWS credentials
+    - name: configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v1
       with:
         aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ env.AWS_REGION }}
+
+    - name: install dependencies
+      run: npm ci
+
+    - name: pre process
+      run: npm run pre-process
+
+    - name: build go lambda triggers
+      run: pre-deploy.sh
+      shell: bash
+    
+    - name: compare stack difference
+      run: cdk diff
+
+    - name: synth
+      run: cdk synth
+
+    - name: deploy
+      run: cdk deploy
+
+    - name: post process
+      run: npm run post-process
