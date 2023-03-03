@@ -45,7 +45,7 @@ jobs:
       run: npm run pre-process
 
     - name: build go lambda triggers
-      run: pre-deploy.sh
+      run: bash ${GITHUB_WORKSPACE}/.github/pre-deploy.sh
       shell: bash
     
     - name: compare stack difference

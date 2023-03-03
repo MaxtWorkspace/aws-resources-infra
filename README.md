@@ -69,3 +69,7 @@ The github action CI/CD pipeline follows this
 - ./public - Cognito user pool UI Customization files
 - ./src - lambda source code
 - ./test - CDK test code
+
+### Other tools
+Conventional commits: https://www.conventionalcommits.org/en/v1.0.0/
+eslint - will fix on save file(configured in vscode setting)
