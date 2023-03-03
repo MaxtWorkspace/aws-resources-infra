@@ -1,0 +1,15 @@
+{
+    "folders": [
+        {
+            "path": ".."
+        }
+    ],
+    "settings": {
+        "files.eol": "\n",
+        "editor.codeActionsOnSave": {
+            "source.fixAll.eslint": true
+        },
+        "eslint.validate": ["typescript"],
+        "editor.tabSize": 2,
+    }
+}
