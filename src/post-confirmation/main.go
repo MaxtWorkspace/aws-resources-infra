@@ -22,11 +22,11 @@ func init() {
 	dbService = dynamodb.New(sess)
 }
 
-func handler(req events.CognitoEventUserPoolsPostConfirmationRequest) (events.CognitoEventUserPoolsPostConfirmationResponse, error) {
+func handler(event events.CognitoEventUserPoolsPostConfirmation) (events.CognitoEventUserPoolsPostConfirmation, error) {
 	//User name, email, email_verified should already be set by cognito
-	userName := req.UserAttributes["username"]
-	email := req.UserAttributes["email"]
-	verified := req.UserAttributes["email_verified"]
+	userName := event.UserName
+	email := event.Request.UserAttributes["email"]
+	verified := event.Request.UserAttributes["email_verified"]
 
 	logger.Info("User signed up, migrate user into dynamodb",
 		zap.String("user name", userName),
@@ -54,10 +54,10 @@ func handler(req events.CognitoEventUserPoolsPostConfirmationRequest) (events.Co
 			zap.String("email verified", verified),
 			zap.Error(err),
 		)
-		return events.CognitoEventUserPoolsPostConfirmationResponse{}, err
+		return event, err
 	}
 
-	return events.CognitoEventUserPoolsPostConfirmationResponse{}, nil
+	return event, nil
 }
 
 func main() {

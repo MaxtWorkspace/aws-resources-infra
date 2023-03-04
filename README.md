@@ -30,7 +30,7 @@ Route53:
 More information at: https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_route53-readme.html
 
 ### Infra Deploy Flow
-Bundle Go lambda functions, for windows:
+Bundle Go lambda functions, for windows(read more about aws lambda go: https://pkg.go.dev/github.com/aws/aws-lambda-go/events#section-readme):
 
     $> pre-deploy.cmd
     ...(for windows)
@@ -73,3 +73,6 @@ The github action CI/CD pipeline follows this
 ### Other tools
 Conventional commits: https://www.conventionalcommits.org/en/v1.0.0/
 eslint - will fix on save file(configured in vscode setting)
+
+### Some notes
+CDK Lambda Function `Code.fromAsset(path)` will bundle the code exactly under `path`, so `handler` must be `path/executable` where `executable` is the compiled executable GO program
