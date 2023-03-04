@@ -42,8 +42,8 @@ export class LambdaToDynamoStack extends Stack {
       signInCaseSensitive: false,
       selfSignUpEnabled: true,
       userVerification: {
-        emailSubject: 'Your Verification Link For Chaos Lord!',
-        emailBody: 'Thanks for signing up to our Chaos Lord! Please follow the link: {##Verify Email##}',
+        emailSubject: 'Chaos Lord Account Verification - Action Required',
+        emailBody: 'Hello Fellow Chaos Lord Player,\nWelcome aboard! Please verify your account by following {##Verify Email##}. If you did not sign up for Chaos Lord, please ignore this email.',
         emailStyle: VerificationEmailStyle.LINK,
       },
       standardAttributes: {
@@ -154,7 +154,7 @@ export class LambdaToDynamoStack extends Stack {
     // configure lambda function
     const lambda = new Function(this, name, {
       functionName: name,
-      handler: `src.${name}.main`,
+      handler: `src/${name}/main`,
       runtime: Runtime.GO_1_X,
       code: Code.fromAsset(`${dir}${name}.zip`),
       memorySize: 512,
