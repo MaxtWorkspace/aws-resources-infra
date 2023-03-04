@@ -26,7 +26,7 @@ export class LambdaToDynamoStack extends Stack {
     });
 
     config.triggers.forEach(trigger => {
-      const lambda = this.DeployLambda(trigger.path,trigger.name);
+      const lambda = this.DeployLambda(trigger.path, trigger.name);
       //grant dynamo permission to lambda
       table.grantReadWriteData(lambda);
       //add lambda as user pool triggers
@@ -154,7 +154,7 @@ export class LambdaToDynamoStack extends Stack {
     // configure lambda function
     const lambda = new Function(this, name, {
       functionName: name,
-      handler: 'main',
+      handler: `src.${name}.main`,
       runtime: Runtime.GO_1_X,
       code: Code.fromAsset(`${dir}${name}.zip`),
       memorySize: 512,
