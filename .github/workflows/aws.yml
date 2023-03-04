@@ -50,15 +50,9 @@ jobs:
     - name: build go lambda triggers
       run: bash ./pre-deploy.sh
       shell: bash
-    
-    - name: compare stack difference
-      run: cdk diff
-
-    - name: synth
-      run: cdk synth
 
     - name: deploy
-      run: cdk deploy
+      run: cdk deploy --require-approval never
 
     - name: post process
       run: npm run post-process
