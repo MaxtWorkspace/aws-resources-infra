@@ -2,7 +2,7 @@
 import {CognitoIdentityProviderClient} from '@aws-sdk/client-cognito-identity-provider';
 import {Route53Client, type ResourceRecordSet} from '@aws-sdk/client-route-53';
 import {config} from '../lib/config';
-import {getCognitoDomainDescribe, getRecords, loadFile, loadImage, pollWithPrerequisites, sendChangeRecord, setUserPoolUICustomization} from '../lib/utils';
+import {getCognitoDomainDescribe, getRecords, loadFile, loadImage, poll, pollUntilDone, pollWithPrerequisites, sendChangeRecord, setUserPoolUICustomization} from '../lib/utils';
 import * as winston from 'winston';
 
 const logger = winston.loggers.get('sdk-logger').child({service: 'Route53, Cognito Identity Provider'});
@@ -26,7 +26,8 @@ const clientRoute53 = new Route53Client({
 
 try {
   // Either UploadHostedUICustomization or CreateCognitoAliasRecord fails, the verifyCreated is not called, so will also fail record creation check
-  pollWithPrerequisites([UploadHostedUICustomization, CreateCognitoAliasRecord], verifyCreated, config.polling.checkInterval * 1000, config.polling.timeOut * 1000);
+  pollWithPrerequisites([CreateCognitoAliasRecord], verifyCreated, config.polling.checkInterval * 1000, config.polling.timeOut * 1000);
+  pollUntilDone(UploadHostedUICustomization, config.polling.checkInterval * 1000, config.polling.timeOut * 1000);
 } catch (err) {
   logger.error(err);
   throw err;
@@ -38,6 +39,15 @@ async function CreateCognitoAliasRecord() {
     logger.warn(`Existing Alias Record - found an existing cognito domain alias record for domain: ${config.domain.domainName}, please verify that the record matches with the alias target in the user pool: ${config.userPool}`);
     return;
   }
+
+  await poll(async () => {
+    const response = await getCognitoDomainDescribe(clientCognito, config.domain.domainName);
+    const status = response.DomainDescription?.Status;
+    if (!status) {
+      throw new Error(`Invalid Domain Status - status is undefined for domain: ${config.domain.domainName}, it must be active to retreive Alias target`);
+    }
+    return status === 'Active' ? true : false;
+  }, 2 * config.polling.checkInterval * 1000, config.polling.timeOut * 1000);
 
   const response = await getCognitoDomainDescribe(clientCognito, config.domain.domainName);
   const alias = response.DomainDescription?.CloudFrontDistribution;
@@ -63,7 +73,7 @@ async function verifyCreated() {
   }
 
   if (records.length === 1) {
-    logger.info('Record CREATED Successfully - existing cognito domain alias recod is created');
+    logger.info('Record CREATED Successfully - cognito domain alias recod is created');
     return true;
   }
 

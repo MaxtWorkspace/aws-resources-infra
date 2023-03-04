@@ -16,29 +16,49 @@ export async function loadImage(path: string) {
   return new Uint8Array(content as ArrayBuffer);
 }
 
+// Poll until fn it resolves to true or poll times out
 export async function poll(fn: AsyncValidator, pollIntervial: number, pollTimeOut: number) {
   const endTime = Date.now() + pollTimeOut;
   const validate = async () => {
-    const isValid = await fn();
+    const done = await fn();
     const time = Date.now();
     if (time > endTime) {
       throw new Error('Polling time out! Try Again!');
-    } else if (!isValid) {
+    } else if (!done) {
       setTimeout(validate, pollIntervial);
     }
   };
-  return validate();
+  validate();
 }
 
+// Poll until fn resolves or poll times out
+export async function pollUntilDone(fn: AsyncFunc, pollIntervial: number, pollTimeOut: number) {
+  const endTime = Date.now() + pollTimeOut;
+  let done = false;
+  fn()
+    .then(() => { done = true; })
+    .catch(err => { throw err; });
+  const execute = () => {
+    const time = Date.now();
+    if (time > endTime) {
+      throw new Error('Polling time out! Try Again!');
+    } else if (!done) {
+      setTimeout(execute, pollIntervial);
+    }
+  };
+  return execute();
+}
+
+// Poll until fn it resolves to true or poll times out
 export async function pollWithPrerequisites(prereqs: AsyncFunc[], fn: AsyncValidator, pollIntervial: number, pollTimeOut: number) {
   const endTime = Date.now() + pollTimeOut;
   await Promise.all(prereqs.map(pre => pre()));
   const validate = async () => {
-    const isValid = await fn();
+    const done = await fn();
     const time = Date.now();
     if (time > endTime) {
       throw new Error('Polling time out! Try Again!');
-    } else if (!isValid) {
+    } else if (!done) {
       setTimeout(validate, pollIntervial);
     }
   };
