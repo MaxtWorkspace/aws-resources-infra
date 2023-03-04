@@ -41,6 +41,9 @@ jobs:
     - name: install dependencies
       run: npm ci
 
+    - name: install cdk
+      run: npm install -g aws-cdk
+
     - name: pre process
       run: npm run pre-process
 
