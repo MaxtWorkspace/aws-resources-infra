@@ -3,7 +3,7 @@ import { Duration, RemovalPolicy, Stack, StackProps } from 'aws-cdk-lib';
 import { Certificate } from 'aws-cdk-lib/aws-certificatemanager';
 import { AccountRecovery, AdvancedSecurityMode, ClientAttributes, Mfa, OAuthScope, UserPool, UserPoolClientIdentityProvider, UserPoolEmail, VerificationEmailStyle } from 'aws-cdk-lib/aws-cognito';
 import { AttributeType, BillingMode, Table } from 'aws-cdk-lib/aws-dynamodb';
-import { Policy, PolicyStatement } from 'aws-cdk-lib/aws-iam';
+import { Effect, Policy, PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { Code, Function, Runtime } from 'aws-cdk-lib/aws-lambda';
 import { Construct } from 'constructs';
 import { config } from './config';
@@ -27,9 +27,17 @@ export class LambdaToDynamoStack extends Stack {
 
     config.triggers.forEach(trigger => {
       const lambda = this.DeployLambda(trigger.path, trigger.name);
-      //grant dynamo permission to lambda
-      table.grantReadWriteData(lambda);
-      //add lambda as user pool triggers
+      // grant lambda write permission
+      lambda.addToRolePolicy(new PolicyStatement({
+        effect: Effect.ALLOW,
+        actions: [
+          'dynamodb:PutItem',
+        ],
+        resources: [
+          table.tableArn,
+        ],
+      }));
+      // add lambda as user pool triggers
       userPool.addTrigger(trigger.operation, lambda);
       lambda.role?.attachInlinePolicy(userPoolPolicy);
     });

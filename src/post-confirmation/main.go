@@ -35,7 +35,7 @@ func handler(event events.CognitoEventUserPoolsPostConfirmation) (events.Cognito
 	)
 
 	_, err := dbService.PutItem(&dynamodb.PutItemInput{
-		TableName: aws.String("Users"),
+		TableName: aws.String("users"),
 		Item: map[string]*dynamodb.AttributeValue{
 			"username": {S: aws.String(userName)},
 			"user_email": {
