@@ -44,7 +44,7 @@ Compare CDK Difference and synth:
     $> cdk synth
     ...
 
-Run pre proccess before deploy(delete exsiting cognito domain alias record in Route53):
+Run pre proccess before deploy(delete exsiting cognito domain alias record in Route53, read more: https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-route-53/index.html):
 
     $> npm run pre-process
     ...
@@ -54,7 +54,7 @@ Deploy:
     $> cdk deploy
     ...
 
-Run post process(set up aws resources that cant be set up in cdk):
+Run post process(set up aws resources that cant be set up in cdk, read more: https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-cognito-identity-provider/index.html):
 
     $> npm run post-process
     ...
