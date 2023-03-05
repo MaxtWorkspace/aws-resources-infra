@@ -1,11 +1,16 @@
 /* eslint-disable @typescript-eslint/ban-types */
 import { CognitoIdentityProviderClient, DescribeUserPoolDomainCommand, SetUICustomizationCommand } from '@aws-sdk/client-cognito-identity-provider';
 import { ChangeResourceRecordSetsCommand, ListResourceRecordSetsCommand, type ResourceRecordSet, type Route53Client } from '@aws-sdk/client-route-53';
+import { readFileSync } from 'fs';
 import { readFile } from 'fs/promises';
 
 export type Validator = () => boolean;
 export type AsyncFunc = () => Promise<void>;
 export type AsyncValidator = () => Promise<boolean>;
+
+export function loadFileSync(path: string) {
+  return readFileSync(path, 'utf-8');
+}
 
 export async function loadFile(path: string) {
   return await readFile(path, 'utf-8');
