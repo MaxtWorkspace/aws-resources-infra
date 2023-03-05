@@ -61,8 +61,7 @@ export class LambdaToDynamoStack extends Stack {
       selfSignUpEnabled: true,
       userVerification: {
         emailSubject: 'Chaos Lord Account Verification - Action Required',
-        emailBody:
-          'Hello Fellow Chaos Lord Player,\nWelcome aboard! Please verify your account by following {##Verify Email##}. If you did not sign up for Chaos Lord, please ignore this email.',
+        emailBody: 'Hello Fellow Chaos Lord Player,\nWelcome aboard! Please verify your account by following {##Verify Email##}. If you did not sign up for Chaos Lord, please ignore this email.',
         emailStyle: VerificationEmailStyle.LINK,
       },
       standardAttributes: {
