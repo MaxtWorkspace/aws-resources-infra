@@ -17,6 +17,7 @@ import { Effect, Policy, PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { Code, Function, Runtime } from 'aws-cdk-lib/aws-lambda';
 import { Construct } from 'constructs';
 import { config } from './config';
+import { loadFileSync } from './utils';
 
 export class LambdaToDynamoStack extends Stack {
   constructor(scope: Construct, id: string, props: StackProps) {
@@ -61,7 +62,7 @@ export class LambdaToDynamoStack extends Stack {
       selfSignUpEnabled: true,
       userVerification: {
         emailSubject: 'Chaos Lord Account Verification - Action Required',
-        emailBody: 'Hello Fellow Chaos Lord Player,\nWelcome aboard! Please verify your account by following {##Verify Email##}. If you did not sign up for Chaos Lord, please ignore this email.',
+        emailBody: loadFileSync('./public/email-temp.html'),
         emailStyle: VerificationEmailStyle.LINK,
       },
       standardAttributes: {
