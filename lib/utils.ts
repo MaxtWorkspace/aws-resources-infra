@@ -1,6 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/ban-types */
 import { CognitoIdentityProviderClient, DescribeUserPoolDomainCommand, SetUICustomizationCommand } from '@aws-sdk/client-cognito-identity-provider';
-import {ChangeResourceRecordSetsCommand, ListResourceRecordSetsCommand, type ResourceRecordSet, type Route53Client} from '@aws-sdk/client-route-53';
+import { ChangeResourceRecordSetsCommand, ListResourceRecordSetsCommand, type ResourceRecordSet, type Route53Client } from '@aws-sdk/client-route-53';
 import { readFile } from 'fs/promises';
 
 export type Validator = () => boolean;
@@ -19,50 +19,91 @@ export async function loadImage(path: string) {
 // Poll until fn it resolves to true or poll times out
 export async function poll(fn: AsyncValidator, pollIntervial: number, pollTimeOut: number) {
   const endTime = Date.now() + pollTimeOut;
-  const validate = async () => {
-    const done = await fn();
+  let lastTimeOut: NodeJS.Timeout;
+  const validate = (resolve: Function, reject: Function) => {
     const time = Date.now();
-    if (time > endTime) {
-      throw new Error('Polling time out! Try Again!');
-    } else if (!done) {
-      setTimeout(validate, pollIntervial);
-    }
+    Promise.resolve(fn())
+      .then((result) => {
+        if (result) {
+          clearTimeout(lastTimeOut);
+          resolve();
+        } else if (time < endTime) {
+          lastTimeOut = setTimeout(validate, pollIntervial, resolve, reject);
+        } else {
+          reject(new Error('Polling time out! Try Again!'));
+        }
+      })
+      .catch((err) => reject(err));
   };
-  validate();
+  return new Promise(validate);
 }
 
 // Poll until fn resolves or poll times out
 export async function pollUntilDone(fn: AsyncFunc, pollIntervial: number, pollTimeOut: number) {
   const endTime = Date.now() + pollTimeOut;
   let done = false;
-  fn()
-    .then(() => { done = true; })
-    .catch(err => { throw err; });
-  const execute = () => {
+  let lastTimeOut: NodeJS.Timeout;
+  Promise.resolve(fn())
+    .then(() => {
+      done = true;
+    })
+    .catch((err) => {
+      throw err;
+    });
+  // resolves only when fn resolves or time out
+  const validate = (resolve: Function, reject: Function) => {
     const time = Date.now();
-    if (time > endTime) {
-      throw new Error('Polling time out! Try Again!');
-    } else if (!done) {
-      setTimeout(execute, pollIntervial);
+    if (done) {
+      clearTimeout(lastTimeOut);
+      resolve();
+    } else if (time < endTime) {
+      lastTimeOut = setTimeout(validate, pollIntervial, resolve, reject);
+    } else {
+      reject(new Error('Polling time out! Try Again!'));
     }
   };
-  return execute();
+  return new Promise(validate);
 }
 
 // Poll until fn it resolves to true or poll times out
 export async function pollWithPrerequisites(prereqs: AsyncFunc[], fn: AsyncValidator, pollIntervial: number, pollTimeOut: number) {
   const endTime = Date.now() + pollTimeOut;
-  await Promise.all(prereqs.map(pre => pre()));
-  const validate = async () => {
-    const done = await fn();
+  let preReqDone = false;
+  let lastTimeOut: NodeJS.Timeout;
+  // set preReqs done when all of them are done
+  Promise.all(prereqs.map((pre) => pre()))
+    .then(() => {
+      preReqDone = true;
+    })
+    .catch((err) => {
+      throw err;
+    });
+  const validate = (resolve: Function, reject: Function) => {
     const time = Date.now();
-    if (time > endTime) {
-      throw new Error('Polling time out! Try Again!');
-    } else if (!done) {
-      setTimeout(validate, pollIntervial);
+    // if prerequisites not done, schedule the next call until time out
+    if (!preReqDone) {
+      if (time < endTime) {
+        lastTimeOut = setTimeout(validate, pollIntervial, resolve, reject);
+      } else {
+        reject(new Error('Polling time out! Try Again!'));
+      }
     }
+
+    // resolves only when fn resolves to true
+    Promise.resolve(fn())
+      .then((result) => {
+        if (result) {
+          clearTimeout(lastTimeOut);
+          resolve();
+        } else if (time < endTime) {
+          lastTimeOut = setTimeout(validate, pollIntervial, resolve, reject);
+        } else {
+          reject(new Error('Polling time out! Try Again!'));
+        }
+      })
+      .catch((err) => reject(err));
   };
-  return validate();
+  return new Promise(validate);
 }
 
 export async function getRecords(client: Route53Client, zoneId: string, recordName: string) {
@@ -72,7 +113,7 @@ export async function getRecords(client: Route53Client, zoneId: string, recordNa
     MaxItems: 50,
   });
   const response = await client.send(command);
-  return response.ResourceRecordSets?.filter(r => r.Name === `${recordName}.` && r.Type === 'CNAME') || [];
+  return response.ResourceRecordSets?.filter((r) => r.Name === `${recordName}.` && r.Type === 'CNAME') || [];
 }
 
 export async function sendChangeRecord(client: Route53Client, zoneId: string, action: string, comment: string, record: ResourceRecordSet) {
@@ -92,13 +133,14 @@ export async function sendChangeRecord(client: Route53Client, zoneId: string, ac
 }
 
 export async function getCognitoDomainDescribe(client: CognitoIdentityProviderClient, domainName: string) {
+  console.log('Getting Domain');
   const command = new DescribeUserPoolDomainCommand({
     Domain: domainName,
   });
   return await client.send(command);
 }
 
-export async function setUserPoolUICustomization(client: CognitoIdentityProviderClient, css: string, logo: Uint8Array, userPoolId?: string, clientId?: string,) {
+export async function setUserPoolUICustomization(client: CognitoIdentityProviderClient, css: string, logo: Uint8Array, userPoolId?: string, clientId?: string) {
   if (!userPoolId || !clientId) {
     throw new Error();
   }
