@@ -1,9 +1,19 @@
 /* eslint-disable @typescript-eslint/ban-types */
 import { Duration, RemovalPolicy, Stack, StackProps } from 'aws-cdk-lib';
 import { Certificate } from 'aws-cdk-lib/aws-certificatemanager';
-import { AccountRecovery, AdvancedSecurityMode, ClientAttributes, Mfa, OAuthScope, UserPool, UserPoolClientIdentityProvider, UserPoolEmail, VerificationEmailStyle } from 'aws-cdk-lib/aws-cognito';
+import {
+  AccountRecovery,
+  AdvancedSecurityMode,
+  ClientAttributes,
+  Mfa,
+  OAuthScope,
+  UserPool,
+  UserPoolClientIdentityProvider,
+  UserPoolEmail,
+  VerificationEmailStyle,
+} from 'aws-cdk-lib/aws-cognito';
 import { AttributeType, BillingMode, Table } from 'aws-cdk-lib/aws-dynamodb';
-import { Policy, PolicyStatement } from 'aws-cdk-lib/aws-iam';
+import { Effect, Policy, PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { Code, Function, Runtime } from 'aws-cdk-lib/aws-lambda';
 import { Construct } from 'constructs';
 import { config } from './config';
@@ -19,23 +29,31 @@ export class LambdaToDynamoStack extends Stack {
 
     // generate user pool triggers
     const userPoolPolicy = new Policy(this, 'userpool-policy', {
-      statements: [new PolicyStatement({
-        actions: ['cognito-idp:DescribeUserPool'],
-        resources: [userPool.userPoolArn],
-      })],
+      statements: [
+        new PolicyStatement({
+          actions: ['cognito-idp:DescribeUserPool'],
+          resources: [userPool.userPoolArn],
+        }),
+      ],
     });
 
-    config.triggers.forEach(trigger => {
+    config.triggers.forEach((trigger) => {
       const lambda = this.DeployLambda(trigger.path, trigger.name);
-      //grant dynamo permission to lambda
-      table.grantReadWriteData(lambda);
-      //add lambda as user pool triggers
+      // grant lambda write permission
+      lambda.addToRolePolicy(
+        new PolicyStatement({
+          effect: Effect.ALLOW,
+          actions: ['dynamodb:PutItem'],
+          resources: [table.tableArn],
+        }),
+      );
+      // add lambda as user pool triggers
       userPool.addTrigger(trigger.operation, lambda);
       lambda.role?.attachInlinePolicy(userPoolPolicy);
     });
   }
 
-  private DeployCognitoUserPool() : UserPool {
+  private DeployCognitoUserPool(): UserPool {
     // configure user pool
     const userPool = new UserPool(this, config.userPool.userPoolName, {
       userPoolName: config.userPool.userPoolName,
@@ -79,10 +97,8 @@ export class LambdaToDynamoStack extends Stack {
     });
 
     // configure user pool client
-    const clientWriteAttributes = (new ClientAttributes())
-      .withStandardAttributes({fullname: true, email: true, phoneNumber: true});
-    const clientReadAttributes = clientWriteAttributes
-      .withStandardAttributes({emailVerified: true});
+    const clientWriteAttributes = new ClientAttributes().withStandardAttributes({ fullname: true, email: true, phoneNumber: true });
+    const clientReadAttributes = clientWriteAttributes.withStandardAttributes({ emailVerified: true });
     userPool.addClient('chaos-lord-client', {
       authFlows: {
         userPassword: true,
@@ -93,13 +109,11 @@ export class LambdaToDynamoStack extends Stack {
         flows: {
           authorizationCodeGrant: true,
         },
-        scopes: [ OAuthScope.EMAIL, OAuthScope.OPENID, OAuthScope.PHONE ],
+        scopes: [OAuthScope.EMAIL, OAuthScope.OPENID, OAuthScope.PHONE],
         callbackUrls: config.userPool.callbackUrls,
       },
       preventUserExistenceErrors: true,
-      supportedIdentityProviders: [
-        UserPoolClientIdentityProvider.COGNITO,
-      ],
+      supportedIdentityProviders: [UserPoolClientIdentityProvider.COGNITO],
       authSessionValidity: Duration.minutes(3),
       accessTokenValidity: Duration.minutes(60),
       idTokenValidity: Duration.minutes(60),
@@ -122,7 +136,7 @@ export class LambdaToDynamoStack extends Stack {
     return userPool;
   }
 
-  private DeployDynamoDB() : Table {
+  private DeployDynamoDB(): Table {
     // configure dynamo db table
     const table = new Table(this, config.dbName, {
       tableName: config.dbName,
@@ -150,11 +164,11 @@ export class LambdaToDynamoStack extends Stack {
     return table;
   }
 
-  private DeployLambda(dir: string, name: string) : Function {
+  private DeployLambda(dir: string, name: string): Function {
     // configure lambda function
     const lambda = new Function(this, name, {
       functionName: name,
-      handler: `src/${name}/main`,
+      handler: 'main',
       runtime: Runtime.GO_1_X,
       code: Code.fromAsset(`${dir}${name}.zip`),
       memorySize: 512,

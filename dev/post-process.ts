@@ -1,11 +1,20 @@
-
-import {CognitoIdentityProviderClient} from '@aws-sdk/client-cognito-identity-provider';
-import {Route53Client, type ResourceRecordSet} from '@aws-sdk/client-route-53';
-import {config} from '../lib/config';
-import {getCognitoDomainDescribe, getRecords, loadFile, loadImage, pollWithPrerequisites, sendChangeRecord, setUserPoolUICustomization} from '../lib/utils';
+import { CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-provider';
+import { Route53Client, type ResourceRecordSet } from '@aws-sdk/client-route-53';
+import { config } from '../lib/config';
+import {
+  getCognitoDomainDescribe,
+  getRecords,
+  loadFile,
+  loadImage,
+  poll,
+  pollUntilDone,
+  pollWithPrerequisites,
+  sendChangeRecord,
+  setUserPoolUICustomization,
+} from '../lib/utils';
 import * as winston from 'winston';
 
-const logger = winston.loggers.get('sdk-logger').child({service: 'Route53, Cognito Identity Provider'});
+const logger = winston.loggers.get('sdk-logger').child({ service: 'Route53, Cognito Identity Provider' });
 logger.debug('Post-process - Create Route53 alias CNAME record for cognito user pool domain');
 
 const clientCognito = new CognitoIdentityProviderClient({
@@ -26,7 +35,25 @@ const clientRoute53 = new Route53Client({
 
 try {
   // Either UploadHostedUICustomization or CreateCognitoAliasRecord fails, the verifyCreated is not called, so will also fail record creation check
-  pollWithPrerequisites([UploadHostedUICustomization, CreateCognitoAliasRecord], verifyCreated, config.polling.checkInterval * 1000, config.polling.timeOut * 1000);
+  poll(
+    async () => {
+      const response = await getCognitoDomainDescribe(clientCognito, config.domain.domainName);
+      const status = response.DomainDescription?.Status;
+      if (!status) {
+        throw new Error(`Invalid Domain Status - status is undefined for domain: ${config.domain.domainName}, it must be active to retreive Alias target`);
+      }
+      return status === 'ACTIVE' ? true : false;
+    },
+    2 * config.polling.checkInterval * 1000,
+    config.polling.timeOut * 1000,
+  )
+    .then(() => {
+      pollWithPrerequisites([CreateCognitoAliasRecord], verifyCreated, config.polling.checkInterval * 1000, config.polling.timeOut * 1000);
+    })
+    .catch((err) => {
+      throw err;
+    });
+  pollUntilDone(UploadHostedUICustomization, config.polling.checkInterval * 1000, config.polling.timeOut * 1000);
 } catch (err) {
   logger.error(err);
   throw err;
@@ -35,7 +62,9 @@ try {
 async function CreateCognitoAliasRecord() {
   const records = await getRecords(clientRoute53, config.domain.hostedZoneId, config.domain.domainName);
   if (records.length > 0) {
-    logger.warn(`Existing Alias Record - found an existing cognito domain alias record for domain: ${config.domain.domainName}, please verify that the record matches with the alias target in the user pool: ${config.userPool}`);
+    logger.warn(
+      `Existing Alias Record - found an existing cognito domain alias record for domain: ${config.domain.domainName}, please verify that the record matches with the alias target in the user pool: ${config.userPool}`,
+    );
     return;
   }
 
@@ -47,9 +76,7 @@ async function CreateCognitoAliasRecord() {
     Region: config.aws.region,
     Type: 'CNAME',
     TTL: 300,
-    ResourceRecords: [
-      { Value: alias },
-    ],
+    ResourceRecords: [{ Value: alias }],
   };
 
   logger.info(`Creating record for alias: ${alias}`, { AliasRecord: record });
@@ -59,11 +86,13 @@ async function CreateCognitoAliasRecord() {
 async function verifyCreated() {
   const records = await getRecords(clientRoute53, config.domain.hostedZoneId, config.domain.domainName);
   if (records.length > 1) {
-    throw new Error(`Invalid Records - more that one record is found under domain: ${config.domain.domainName}, there should only be one alias record for cognito user pool`);
+    throw new Error(
+      `Invalid Records - more that one record is found under domain: ${config.domain.domainName}, there should only be one alias record for cognito user pool`,
+    );
   }
 
   if (records.length === 1) {
-    logger.info('Record CREATED Successfully - existing cognito domain alias recod is created');
+    logger.info('Record CREATED Successfully - cognito domain alias recod is created');
     return true;
   }
 
@@ -89,7 +118,7 @@ async function UploadHostedUICustomization() {
     logger.warn('Existing UI Customization - css updated, but did not verify image matched with uploaded image(verify manually if desired)');
     return;
   }
-  
+
   const elapsed = Date.now() - lastModified.getDate();
   if (elapsed > 10 * 1000) {
     throw new Error('UI Customization failed - last modified date more than 10 seconds, please manually upload');

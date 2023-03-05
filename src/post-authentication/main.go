@@ -21,14 +21,14 @@ func init() {
 	dbService = dynamodb.New(sess)
 }
 
-func handler(req events.CognitoEventUserPoolsPostAuthenticationRequest) (events.CognitoEventUserPoolsPostAuthenticationResponse, error) {
-	userName := req.UserAttributes["username"]
+func handler(event events.CognitoEventUserPoolsPostConfirmation) (events.CognitoEventUserPoolsPostConfirmation, error) {
+	userName := event.UserName
 
 	logger.Info("User signed in, mark user as online",
 		zap.String("user name", userName),
 	)
 
-	return events.CognitoEventUserPoolsPostAuthenticationResponse{}, nil
+	return event, nil
 }
 
 func main() {
