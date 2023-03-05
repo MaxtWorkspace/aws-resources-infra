@@ -133,11 +133,11 @@ export async function sendChangeRecord(client: Route53Client, zoneId: string, ac
 }
 
 export async function getCognitoDomainDescribe(client: CognitoIdentityProviderClient, domainName: string) {
-  console.log('Getting Domain');
   const command = new DescribeUserPoolDomainCommand({
     Domain: domainName,
   });
-  return await client.send(command);
+  const response = await client.send(command);
+  return response;
 }
 
 export async function setUserPoolUICustomization(client: CognitoIdentityProviderClient, css: string, logo: Uint8Array, userPoolId?: string, clientId?: string) {
